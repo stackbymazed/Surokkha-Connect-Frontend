@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, TextInput, View, TouchableOpacity, Text } from 'react-native';
 
 interface Props {
   placeholder: string;
@@ -9,6 +9,8 @@ interface Props {
 }
 
 export const CustomInput = ({ placeholder, value, onChangeText, secureTextEntry }: Props) => {
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
   return (
     <View style={styles.container}>
       <TextInput
@@ -17,8 +19,19 @@ export const CustomInput = ({ placeholder, value, onChangeText, secureTextEntry 
         placeholderTextColor="#64748B"
         value={value}
         onChangeText={onChangeText}
-        secureTextEntry={secureTextEntry}
+        secureTextEntry={secureTextEntry && !isPasswordVisible}
       />
+      {/* Password field হলে eye icon দেখাবে */}
+      {secureTextEntry && (
+        <TouchableOpacity
+          style={styles.eyeBtn}
+          onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+        >
+          <Text style={styles.eyeIcon}>
+            {isPasswordVisible ? '🙈' : '👁️'}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -26,12 +39,25 @@ export const CustomInput = ({ placeholder, value, onChangeText, secureTextEntry 
 const styles = StyleSheet.create({
   container: {
     marginBottom: 15,
+    position: 'relative',
   },
   input: {
     backgroundColor: '#1E293B',
     color: '#FFFFFF',
     padding: 15,
+    paddingRight: 50,
     borderRadius: 12,
     fontSize: 16,
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 15,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyeIcon: {
+    fontSize: 18,
   },
 });

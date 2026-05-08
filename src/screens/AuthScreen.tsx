@@ -1,26 +1,59 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Alert, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  StyleSheet, Text, ScrollView, KeyboardAvoidingView,
+  Platform, TouchableOpacity, Alert, View
+} from 'react-native';
 import { auth } from '../config/firebase';
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  GoogleAuthProvider, 
-  signInWithCredential 
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithCredential,
 } from 'firebase/auth';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { SocialButton } from '../components/SocialButton';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
 export const AuthScreen = ({ onAuthSuccess }: { onAuthSuccess: (user: any) => void }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Google Auth Session — proxy ব্যবহার করে Expo Go তে কাজ করবে
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: GOOGLE_CLIENT_ID,
+    redirectUri: makeRedirectUri({ useProxy: true }),
+  });
+
+  // Google login response handle
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token } = response.params;
+      const credential = GoogleAuthProvider.credential(id_token);
+      signInWithCredential(auth, credential)
+        .then((result) => {
+          onAuthSuccess(result.user);
+        })
+        .catch((error) => {
+          Alert.alert('Google Login Failed', error.message);
+        });
+    }
+  }, [response]);
 
   const handleAuth = async () => {
     if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
+    setLoading(true);
     try {
       let userCredential;
       if (isLogin) {
@@ -30,18 +63,25 @@ export const AuthScreen = ({ onAuthSuccess }: { onAuthSuccess: (user: any) => vo
       }
       onAuthSuccess(userCredential.user);
     } catch (error: any) {
-      Alert.alert("Authentication Failed", error.message);
+      Alert.alert('Authentication Failed', error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    // Note: Google Login in Expo requires additional setup in Firebase Console 
-    // and using expo-auth-session. For now, this is a placeholder for the logic.
-    Alert.alert("Google Login", "Please configure Google SHA-1 keys in Firebase Console to enable this.");
+    if (!GOOGLE_CLIENT_ID) {
+      Alert.alert(
+        'Setup Required',
+        'Google Client ID is missing. Please add EXPO_PUBLIC_GOOGLE_CLIENT_ID to your .env file.\n\nFirebase Console → Authentication → Sign-in method → Google → Enable করুন।'
+      );
+      return;
+    }
+    await promptAsync({ useProxy: true });
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headerArea}>
           <Text style={styles.title}>{isLogin ? 'Welcome Back' : 'Join Us'}</Text>
@@ -52,8 +92,11 @@ export const AuthScreen = ({ onAuthSuccess }: { onAuthSuccess: (user: any) => vo
           <CustomInput placeholder="Email Address" value={email} onChangeText={setEmail} />
           <CustomInput placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
 
-          <CustomButton title={isLogin ? 'Login' : 'Create Account'} onPress={handleAuth} />
-          
+          <CustomButton
+            title={loading ? 'Please wait...' : (isLogin ? 'Login' : 'Create Account')}
+            onPress={handleAuth}
+          />
+
           <View style={styles.dividerArea}>
             <View style={styles.line} />
             <Text style={styles.dividerText}>OR</Text>
@@ -65,7 +108,7 @@ export const AuthScreen = ({ onAuthSuccess }: { onAuthSuccess: (user: any) => vo
 
         <TouchableOpacity onPress={() => setIsLogin(!isLogin)} style={styles.toggleBtn}>
           <Text style={styles.toggleText}>
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            {isLogin ? "Don't have an account? " : 'Already have an account? '}
             <Text style={styles.toggleLink}>{isLogin ? 'Register' : 'Login'}</Text>
           </Text>
         </TouchableOpacity>

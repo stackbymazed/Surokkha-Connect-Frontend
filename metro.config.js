@@ -1,14 +1,9 @@
-const { getDefaultConfig } = require('@expo/metro-config');
+const { getDefaultConfig } = require('expo/metro-config');
 
-module.exports = (() => {
-  const config = getDefaultConfig(__dirname);
+const config = getDefaultConfig(__dirname);
 
-  const { transformer, resolver } = config;
+// Firebase এর module resolution এর জন্য
+config.resolver.sourceExts.push('cjs');
+config.resolver.unstable_enablePackageExports = false;
 
-  config.resolver = {
-    ...resolver,
-    sourceExts: [...resolver.sourceExts, 'mjs', 'cjs'],
-  };
-
-  return config;
-})();
+module.exports = config;
